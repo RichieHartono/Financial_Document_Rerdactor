@@ -7,8 +7,9 @@ from pathlib import Path
 # PATHS
 # =========================
 BASE_DIR = Path(__file__).resolve().parent
-ner_spacy_1 = spacy.load(BASE_DIR / "models" / "spacy" / "epoch_20")
-ner_spacy_2 = spacy.load(BASE_DIR / "models" / "spacy_cfg" / "model-best")
+ner_spacy_1 = spacy.load(BASE_DIR / "models" / "test" / "epoch_20")
+ner_spacy_2 = spacy.load(BASE_DIR / "models" / "output3" / "model-best")
+# ner_spacy_2 = spacy.load(BASE_DIR / "models" / "output2" / "model-best")
 
 pdf_input = BASE_DIR / "pdf_files" / "input" / "CPB Software Vendor Invoice.pdf"
 pdf_output_debug = BASE_DIR / "pdf_files" / "output" / "output_debug_3.pdf"
@@ -34,14 +35,14 @@ BLACKLIST = {
 # =========================
 def get_regex_entities(text):
     patterns = {
-        # "name": r"\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)+\b", // Not good, make noises
+        "name": r"\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)+\b", 
         "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
         "url": r"\bhttps?://[^\s]+\b",
         "phone": r"\b(?:\+?\d{1,3})?[-.\s]?\d{3,4}[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b",
         "credit_card": r"\b(?:\d[ -]*?){13,16}\b",
         "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
         "company": r"\b[A-Z][A-Za-z0-9&.,\s]+(?:Inc|Ltd|LLC|Group|Corp|Company)\b",
-        # "address": r"\d+\s[A-Za-z0-9\s,.-]+" // Not good, make noises
+        "address": r"\d+\s[A-Za-z0-9\s,.-]+" 
     }
 
     entities = []
@@ -260,7 +261,7 @@ def process_pdf():
         # 2. Merge Overlapping Entities
         final_ents = merge_entities(regex_ents + ner_1_ents + ner_2_ents)
 
-        # print_final_entities(text, final_ents)
+        print_final_entities(text, final_ents)
 
         regex_all.append(regex_ents)
         ner_1_all.append(ner_1_ents)
