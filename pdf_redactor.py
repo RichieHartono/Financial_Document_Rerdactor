@@ -9,11 +9,10 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 ner_spacy_1 = spacy.load(BASE_DIR / "models" / "test" / "epoch_20")
 ner_spacy_2 = spacy.load(BASE_DIR / "models" / "output3" / "model-best")
-# ner_spacy_2 = spacy.load(BASE_DIR / "models" / "output2" / "model-best")
 
-pdf_input = BASE_DIR / "pdf_files" / "input" / "CPB Software Vendor Invoice.pdf"
-pdf_output_debug = BASE_DIR / "pdf_files" / "output" / "output_debug_3.pdf"
-pdf_redacted = BASE_DIR / "pdf_files" / "output" / "output_redacted_3.pdf" # FINAL PDF
+pdf_input = BASE_DIR / "pdf_files" / "input" / "Amazon Vendor Invoice.pdf"
+pdf_output_debug = BASE_DIR / "pdf_files" / "output" / "output_debug_final.pdf"
+pdf_redacted = BASE_DIR / "pdf_files" / "output" / "output_redacted_final.pdf" # FINAL PDF
 
 # =========================
 # CONFIG
@@ -27,7 +26,10 @@ MAX_ENTITY_LENGTH = 60
 BLACKLIST = {
     "Invoice", "Amount", "Tax", "Total",
     "Shipping", "Order", "Date", "Description",
-    "Charges", "Number"
+    "Charges", "Number", "Terms", "Payment",
+    "Transaction", "Fee", "Gross", "Service",
+    "Customer", "Period", "Basic", "VAT",
+    "Cash", "Billing", "For"
 }
 
 # =========================
@@ -35,14 +37,14 @@ BLACKLIST = {
 # =========================
 def get_regex_entities(text):
     patterns = {
-        "name": r"\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)+\b", 
+        "name": r"\b[A-Z][a-z]+(?: [A-Z][a-z]+)+\b", 
         "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
         "url": r"\bhttps?://[^\s]+\b",
         "phone": r"\b(?:\+?\d{1,3})?[-.\s]?\d{3,4}[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b",
         "credit_card": r"\b(?:\d[ -]*?){13,16}\b",
         "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
         "company": r"\b[A-Z][A-Za-z0-9&.,\s]+(?:Inc|Ltd|LLC|Group|Corp|Company)\b",
-        "address": r"\d+\s[A-Za-z0-9\s,.-]+" 
+        "address": r"\b\d+\s+[A-Za-z0-9.-]+(?:\s+[A-Za-z0-9.-]+)*\s+(?:Avenue|Lane|Road|Boulevard|Drive|Street|Ave|Dr|Rd|Blvd|Ln|St)\.?\b" 
     }
 
     entities = []
@@ -91,8 +93,11 @@ def overlap_ratio(a, b):
 def is_valid(text):
     if len(text) > MAX_ENTITY_LENGTH:
         return False
-    if any(word in text for word in BLACKLIST):
+    words = text.split()
+    if any(word in BLACKLIST for word in words):
         return False
+    # if any(word in text for word in BLACKLIST):
+    #     return False
     return True
 
 # =========================
@@ -103,6 +108,7 @@ def merge_entities(entities):
     merged = []
 
     for ent in entities:
+        print(f"=== {ent}")
         if not is_valid(ent["text"]):
             continue
 
@@ -134,11 +140,11 @@ def merge_entities(entities):
 # DEBUG PRINT
 # =========================
 def print_debug(regex_ents, ner_1_ents, ner_2_ents):
-    # print("\n=== REGEX DETECTIONS ===")
-    # for e in regex_ents:
-    #     print(f"{e['text']} -> {e['label']}")
+    print("\n=== REGEX DETECTIONS ===")
+    for e in regex_ents:
+        print(f"{e['text']} -> {e['label']}")
 
-    print("\n=== NERz DETECTIONS ===")
+    print("\n=== NER DETECTIONS ===")
     for e in ner_1_ents:
         print(f"{e['text']} -> {e['label']}")
 
@@ -161,7 +167,7 @@ def annotate_pdf(input_pdf, output_pdf, regex_ents_all, ner_1_ents_all, ner_2_en
     for page_index, page in enumerate(doc):
         text = page.get_text()
 
-         # REGEX (RED BOX)
+        #  REGEX (RED BOX)
         for ent in regex_ents_all[page_index]:
             rects = page.search_for(ent["text"])
             for r in rects:
@@ -189,17 +195,17 @@ def annotate_pdf(input_pdf, output_pdf, regex_ents_all, ner_1_ents_all, ner_2_en
                 annot.update()
 
         # FINAL (BLACK BOX)
-        # for ent in final_ents_all[page_index]:
-        #     span_text = text[ent["start"]:ent["end"]]
-        #     rects = page.search_for(span_text)
-        #     for r in rects:
-        #         annot = page.add_rect_annot(r)
-        #         annot.set_colors(stroke=(0, 0, 0))
-        #         annot.set_info(content=f"FINAL: {','.join(ent['labels'])}")
-        #         annot.update()
+        for ent in final_ents_all[page_index]:
+            span_text = text[ent["start"]:ent["end"]]
+            rects = page.search_for(span_text)
+            for r in rects:
+                annot = page.add_rect_annot(r)
+                annot.set_colors(stroke=(0, 0, 0))
+                annot.set_info(content=f"FINAL: {','.join(ent['labels'])}")
+                annot.update()
 
     doc.save(output_pdf)
-    print(f"\n✅ Saved DEBUG PDF: {output_pdf}")
+    print(f"\nSaved DEBUG PDF: {output_pdf}")
 
 # =========================
 # REDACT + CONSOLE PREVIEW
@@ -212,6 +218,7 @@ def redact_pdf(input_pdf, output_pdf, final_ents_all):
         redacted_text = list(text)
 
         print(f"\n===== PAGE {page_index+1} =====")
+    
 
         for ent in final_ents_all[page_index]:
             span_text = text[ent["start"]:ent["end"]]
@@ -220,7 +227,7 @@ def redact_pdf(input_pdf, output_pdf, final_ents_all):
 
             # mask console preview
             for i in range(ent["start"], ent["end"]):
-                redacted_text[i] = "'\'"
+                redacted_text[i] = "~"
 
             # apply to PDF
             rects = page.search_for(span_text)
@@ -249,6 +256,7 @@ def process_pdf():
     for page_num, page in enumerate(doc):
         print(f"\n=> Processing page {page_num+1}")
         text = page.get_text()
+        print(f"TEXT: \n {text}")
 
         # 1. Detect Entities 
         regex_ents = get_regex_entities(text)

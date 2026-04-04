@@ -1,16 +1,8 @@
 import pandas as pd
 import ast
 from collections import defaultdict
+from pdf_redactor import get_regex_entities
 from pathlib import Path
-from pdf_redactor import (
-    get_regex_entities,
-    get_ner_entities,
-    merge_entities,
-    ner_spacy_1,
-    ner_spacy_2,
-    NER_1_WEIGHT,
-    NER_2_WEIGHT
-)
 
 IOU_THRESHOLD = 0.5
 BASE_DIR = Path(__file__).resolve().parent
@@ -26,6 +18,8 @@ def evaluate(dataset_path):
     df = pd.read_csv(dataset_path)
 
     global_TP = global_FP = global_FN = 0
+
+    # per label stats
     stats = defaultdict(lambda: {"TP": 0, "FP": 0, "FN": 0})
 
     for _, row in df.iterrows():
@@ -37,21 +31,7 @@ def evaluate(dataset_path):
             for t in true_entities
         ]
 
-        # === PIPELINE ===
-        regex_ents = get_regex_entities(text)
-        ner1_ents = get_ner_entities(ner_spacy_1, text, NER_1_WEIGHT, "NER1")
-        ner2_ents = get_ner_entities(ner_spacy_2, text, NER_2_WEIGHT, "NER2")
-
-        final_ents = merge_entities(ner1_ents + ner2_ents + regex_ents)
-
-        preds = [
-            {
-                "start": e["start"],
-                "end": e["end"],
-                "label": list(e["labels"])[0]  # keep consistent with your system
-            }
-            for e in final_ents
-        ]
+        preds = get_regex_entities(text)
 
         matched_pred = set()
         matched_true = set()
@@ -74,12 +54,13 @@ def evaluate(dataset_path):
             if j not in matched_true:
                 stats[t["label"]]["FN"] += 1
 
+        # global
         global_TP += len(matched_pred)
         global_FP += len(preds) - len(matched_pred)
         global_FN += len(truths) - len(matched_true)
 
     # =========================
-    # GLOBAL
+    # GLOBAL METRICS
     # =========================
     precision = global_TP / (global_TP + global_FP) if global_TP + global_FP else 0
     recall = global_TP / (global_TP + global_FN) if global_TP + global_FN else 0
@@ -90,18 +71,17 @@ def evaluate(dataset_path):
             "Label": "Combined Result",
             "Precision": precision,
             "Recall": recall,
-            "F1": f1,
-            "accuracy": accuracy
+            "F1": f1
         })
     
-    print("\n=== COMBINED MODEL PERFORMANCE ===")
+    print("\n=== REGEX GLOBAL PERFORMANCE ===")
     print(f"Precision: {precision:.4f}")
     print(f"Recall:    {recall:.4f}")
     print(f"F1 Score:  {f1:.4f}")
     print(f"Accuracy:  {accuracy:.4f}")
 
     # =========================
-    # PER ENTITY
+    # PER LABEL METRICS
     # =========================
     print("\n=== PER-ENTITY PERFORMANCE ===")
 
@@ -121,7 +101,7 @@ def evaluate(dataset_path):
             "Label": label,
             "Precision": p,
             "Recall": r,
-            "F1": f,
+            "F1": f
         })
 
     return result
@@ -129,5 +109,5 @@ def evaluate(dataset_path):
 
 if __name__ == "__main__":
     result = evaluate(CSV_TEST)
-    pd.DataFrame(result).to_csv(BASE_DIR / "final_evaluation_results.csv", index=False)
-    print("\nEvaluation complete. Results saved to final_evaluation_results.csv")
+    pd.DataFrame(result).to_csv(BASE_DIR / "regex_evaluation_results.csv", index=False)
+    print("\nEvaluation complete. Results saved to regex_evaluation_results.csv")
