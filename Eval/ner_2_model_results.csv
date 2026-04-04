@@ -1,5 +1,5 @@
 Label,Precision,Recall,F1
-OVERALL,1.0,1.0,1.0
+Combined Result,1.0,1.0,1.0
 company,1.0,1.0,1.0
 address,1.0,1.0,1.0
 ssn,1.0,1.0,1.0

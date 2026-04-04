@@ -99,13 +99,13 @@ def main():
     scores = evaluate_model(nlp, test_data)
 
     # =========================
-    # OVERALL
+    # COMBINED
     # =========================
     precision = scores.get("ents_p", 0.0)
     recall = scores.get("ents_r", 0.0)
     f1 = scores.get("ents_f", 0.0)
 
-    print("=== OVERALL PERFORMANCE ===")
+    print("=== COMBINED PERFORMANCE ===")
     print(f"Precision: {precision:.4f}")
     print(f"Recall:    {recall:.4f}")
     print(f"F1 Score:  {f1:.4f}")
@@ -113,7 +113,7 @@ def main():
     results = []
 
     results.append({
-        "Label": "OVERALL",
+        "Label": "Combined Result",
         "Precision": precision,
         "Recall": recall,
         "F1": f1
