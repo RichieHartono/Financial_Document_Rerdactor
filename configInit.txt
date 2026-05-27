@@ -1,3 +1,2 @@
 python -m spacy init config config.cfg --lang en --pipeline ner --optimize accuracy
 python -m spacy train config.cfg --output .models/output4
- 
